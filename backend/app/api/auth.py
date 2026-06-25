@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,11 @@ router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+
 def _create_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=30)
     payload = {"sub": user_id, "exp": expire}
@@ -23,22 +29,22 @@ def _create_token(user_id: int) -> str:
 
 
 @router.post("/register")
-async def register(username: str, password: str):
+async def register(body: AuthRequest):
     """Register a new user. Returns JWT token."""
-    if len(username) < 2 or len(username) > 64:
+    if len(body.username) < 2 or len(body.username) > 64:
         raise HTTPException(status_code=400, detail="Username must be 2-64 characters")
-    if len(password) < 4:
+    if len(body.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
 
     async with async_session_factory() as db:
-        result = await db.execute(select(User).where(User.username == username))
+        result = await db.execute(select(User).where(User.username == body.username))
         if result.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Username already exists")
 
         user = User(
-            username=username,
-            hashed_password=pwd_context.hash(password),
-            display_name=username,
+            username=body.username,
+            hashed_password=pwd_context.hash(body.password),
+            display_name=body.username,
         )
         db.add(user)
         await db.commit()
@@ -52,13 +58,13 @@ async def register(username: str, password: str):
 
 
 @router.post("/login")
-async def login(username: str, password: str):
+async def login(body: AuthRequest):
     """Login with username and password. Returns JWT token."""
     async with async_session_factory() as db:
-        result = await db.execute(select(User).where(User.username == username))
+        result = await db.execute(select(User).where(User.username == body.username))
         user = result.scalar_one_or_none()
 
-        if not user or not pwd_context.verify(password, user.hashed_password):
+        if not user or not pwd_context.verify(body.password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = _create_token(user.id)
