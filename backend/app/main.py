@@ -1,6 +1,9 @@
 """FastAPI application entry point."""
 import logging
+import os
+import shutil
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +26,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up cloud-agent backend...")
     logger.info(f"LLM model: {settings.llm_model}")
     logger.info(f"Sandbox image: {settings.sandbox_image}")
+
+    # Ensure .env exists (fallback to .env.example for Codespace)
+    env_path = Path(".env")
+    env_example = Path("../.env.example")
+    if not env_path.exists() and env_example.exists():
+        shutil.copy(env_example, env_path)
+        logger.info("Created .env from .env.example")
 
     # Init DB
     try:
