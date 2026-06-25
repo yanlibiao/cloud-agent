@@ -13,6 +13,8 @@ function getToken(): string | null {
 
 async function request(method: string, path: string, body?: any): Promise<any> {
   const headers: Record<string, string> = {};
+  const isAuthEndpoint = path.startsWith("/auth/");
+
   const token = getToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -27,8 +29,8 @@ async function request(method: string, path: string, body?: any): Promise<any> {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401) {
-    // Token expired — redirect to login
+  // Only redirect to login on 401 for protected endpoints, not for auth endpoints
+  if (res.status === 401 && !isAuthEndpoint) {
     localStorage.removeItem("cloud_agent_auth");
     window.location.href = "/login";
     throw new Error("Session expired");
