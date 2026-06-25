@@ -148,34 +148,27 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
       </header>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 flex min-h-0">
-          {/* Left: File Tree */}
-          <aside
-            className="w-56 overflow-y-auto p-2"
-            style={{ borderRight: "1px solid var(--border)" }}
-          >
-            <FileTreePanel sessionId={sessionId} />
-          </aside>
+      <div className="flex-1 flex min-h-0">
+        {/* Left: File Tree */}
+        <aside
+          className="w-56 overflow-y-auto p-2"
+          style={{ borderRight: "1px solid var(--border)" }}
+        >
+          <FileTreePanel sessionId={sessionId} />
+        </aside>
 
-          {/* Center: Chat or Ad */}
-          <main className="flex-1 flex flex-col min-w-0" style={{ position: "relative" }}>
-            <CenterPanel sendPrompt={sendPrompt} />
-          </main>
+        {/* Center: Chat or Ad */}
+        <main className="flex-1 flex flex-col min-w-0" style={{ position: "relative" }}>
+          <CenterPanel sendPrompt={sendPrompt} />
+        </main>
 
-          {/* Right: Editor (always visible) */}
-          <aside
-            className="w-96 border-l overflow-hidden hidden lg:block"
-            style={{ minWidth: 0, borderColor: "var(--border)" }}
-          >
-            <EditorPanel />
-          </aside>
-        </div>
-
-        {/* Bottom: Terminal */}
-        <div className="h-48" style={{ borderTop: "1px solid var(--border)" }}>
-          <TerminalPanel />
-        </div>
+        {/* Right: Editor */}
+        <aside
+          className="w-96 border-l overflow-hidden hidden lg:block"
+          style={{ minWidth: 0, borderColor: "var(--border)" }}
+        >
+          <EditorPanel />
+        </aside>
       </div>
     </div>
   );
@@ -183,7 +176,6 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
 
 import ChatPanel from "../components/chat/ChatPanel";
 import ChatInput from "../components/chat/ChatInput";
-import TerminalPanel from "../components/terminal/TerminalPanel";
 
 function FileTreePanel({ sessionId }: { sessionId: string | null }) {
   const fileTree = useChatStore((s) => s.fileTree);
