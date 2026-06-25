@@ -1,7 +1,12 @@
 """File browsing endpoints."""
 import os
+import shutil
+import tempfile
+from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.sandbox.manager import sandbox_manager
 
@@ -66,3 +71,43 @@ async def read_file(session_id: str, path: str = Query(description="File path re
         return {"path": path, "content": content, "size": len(content)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{session_id}/download")
+async def download_file(session_id: str, path: str = Query(description="File path relative to workspace")):
+    """Download a single file from the workspace."""
+    workspace = os.path.abspath(_get_workspace(session_id))
+    target = os.path.abspath(os.path.join(workspace, path))
+
+    if not target.startswith(workspace):
+        raise HTTPException(status_code=403, detail="Path outside workspace")
+
+    if not os.path.isfile(target):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    filename = os.path.basename(target)
+    return FileResponse(target, filename=filename, media_type="application/octet-stream")
+
+
+@router.get("/{session_id}/download-all")
+async def download_all(session_id: str):
+    """Download the entire workspace as a zip file."""
+    workspace = os.path.abspath(_get_workspace(session_id))
+
+    if not os.path.isdir(workspace) or not os.listdir(workspace):
+        raise HTTPException(status_code=404, detail="Workspace is empty")
+
+    # Create zip in temp dir
+    zip_path = os.path.join(tempfile.gettempdir(), f"workspace_{session_id}.zip")
+    with ZipFile(zip_path, "w") as zf:
+        for root, dirs, files in os.walk(workspace):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, workspace)
+                zf.write(full_path, arcname)
+
+    return FileResponse(
+        zip_path,
+        filename=f"workspace_{session_id}.zip",
+        media_type="application/zip",
+    )

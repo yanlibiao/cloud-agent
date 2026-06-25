@@ -88,6 +88,24 @@ function ToggleThemeButton() {
   );
 }
 
+function DownloadAllButton({ sessionId }: { sessionId: string | null }) {
+  const handleDownloadAll = () => {
+    if (!sessionId) return;
+    window.open(`/api/files/${sessionId}/download-all`, "_blank");
+  };
+
+  return (
+    <button
+      onClick={handleDownloadAll}
+      className="p-1.5 rounded-md text-xs transition-colors flex items-center gap-1"
+      style={{ color: "var(--text-muted)" }}
+      title="Download all workspace files as zip"
+    >
+      ⬇ All
+    </button>
+  );
+}
+
 function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt: (t: string) => void; sendInterrupt: () => void; sessionId: string | null }) {
   const agentState = useChatStore((s) => s.agentState);
   const connected = useChatStore((s) => s.connected);
@@ -109,6 +127,7 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <DownloadAllButton sessionId={sessionId} />
           <ToggleThemeButton />
           {(agentState === "thinking" || agentState === "executing") && (
             <button
@@ -186,16 +205,28 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
             .map((entry) => (
               <div
                 key={entry.name}
-                onClick={() => loadFileContent(sessionId, entry.name)}
-                className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors"
+                className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
                 style={{
                   color: "var(--text-secondary)",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <span className="text-xs">📄</span>
-                <span className="truncate">{entry.name}</span>
+                <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
+                  <span className="text-xs">📄</span>
+                  <span className="truncate">{entry.name}</span>
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank");
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                  title="Download file"
+                >
+                  ⬇
+                </button>
               </div>
             ))}
           {fileTree
