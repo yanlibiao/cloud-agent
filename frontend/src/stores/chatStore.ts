@@ -36,6 +36,7 @@ interface SessionState {
   setAgentState: (state: AgentState) => void;
   toggleTheme: () => void;
   setShowAds: (show: boolean) => void;
+  setMessages: (msgs: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
   updateLastStreamingMessage: (text: string) => void;
   finalizeStreaming: () => void;
@@ -81,6 +82,8 @@ export const useChatStore = create<SessionState>((set, get) => ({
     }),
 
   setShowAds: (show) => set({ showAds: show }),
+
+  setMessages: (msgs) => set({ messages: msgs }),
 
   addMessage: (msg) =>
     set((state) => ({ messages: [...state.messages, msg] })),

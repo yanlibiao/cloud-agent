@@ -18,7 +18,12 @@ export class AgentWebSocket {
     this.sessionId = sessionId;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    this.url = `${protocol}//${host}/ws/${sessionId}`;
+    const token = localStorage.getItem("cloud_agent_auth");
+    let tokenParam = "";
+    if (token) {
+      try { tokenParam = `?token=${encodeURIComponent(JSON.parse(token).token)}`; } catch {}
+    }
+    this.url = `${protocol}//${host}/ws/${sessionId}${tokenParam}`;
   }
 
   connect() {

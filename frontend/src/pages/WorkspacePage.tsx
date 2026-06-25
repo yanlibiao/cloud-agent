@@ -1,19 +1,80 @@
 import { useState, useEffect, useRef } from "react";
 import { useChatStore } from "../stores/chatStore";
+import { useAuthStore } from "../stores/authStore";
 import { useAgent, loadFileContent } from "../ws/useAgent";
+import { api } from "../api/client";
 import AdOverlay from "../components/AdOverlay";
 
 async function createSession(): Promise<string> {
-  const res = await fetch("/api/sessions", { method: "POST" });
-  return (await res.json()).id;
+  const data = await api.sessions.create();
+  return data.id;
+}
+
+async function fetchSessions() {
+  try {
+    return await api.sessions.list();
+  } catch {
+    return [];
+  }
 }
 
 export default function WorkspacePage() {
   const { sendPrompt, sendInterrupt, connect } = useAgent();
   const sessionId = useChatStore((s) => s.sessionId);
+  const setSessionId = useChatStore((s) => s.setSessionId);
   const cleanupRef = useRef<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
+
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleNewSession = async () => {
+    try {
+      const sid = await createSession();
+      setSessions(prev => [...prev, { id: sid, title: "New Session" }]);
+      setSessionId(sid);
+      useChatStore.getState().setMessages([]);
+      const cleanup = connect(sid);
+      cleanupRef.current = cleanup || null;
+    } catch (e: any) {
+      setError(e.message || "Failed to create session");
+    }
+  };
+
+  const switchSession = async (sid: string) => {
+    setSessionId(sid);
+    useChatStore.getState().setMessages([]);
+    cleanupRef.current?.();
+    try {
+      const data = await api.sessions.get(sid);
+      useChatStore.getState().setMessages(data.messages || []);
+    } catch {}
+    const cleanup = connect(sid);
+    cleanupRef.current = cleanup || null;
+  };
+
+  const handleDeleteSession = async (sid: string) => {
+    try {
+      await api.sessions.delete(sid);
+      setSessions(prev => prev.filter(s => s.id !== sid));
+      if (sessionId === sid) {
+        const remaining = sessions.filter(s => s.id !== sid);
+        if (remaining.length > 0) {
+          switchSession(remaining[0].id);
+        } else {
+          handleNewSession();
+        }
+      }
+    } catch {}
+  };
+
+  const handleRenameSession = async (sid: string, title: string) => {
+    try {
+      await api.sessions.rename(sid, title);
+      setSessions(prev => prev.map(s => s.id === sid ? { ...s, title } : s));
+    } catch {}
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", "dark");
@@ -23,8 +84,23 @@ export default function WorkspacePage() {
     let cancelled = false;
     (async () => {
       try {
-        const sid = await createSession();
+        const list = await fetchSessions();
+        if (cancelled) return;
+        setSessions(list);
+
+        let sid: string;
+        if (list.length > 0) {
+          sid = list[0].id;
+          const data = await api.sessions.get(sid);
+          if (!cancelled) {
+            useChatStore.getState().setMessages(data.messages || []);
+          }
+        } else {
+          sid = await createSession();
+        }
+
         if (!cancelled) {
+          setSessionId(sid);
           const cleanup = connect(sid);
           cleanupRef.current = cleanup || null;
           setLoading(false);
@@ -64,7 +140,18 @@ export default function WorkspacePage() {
     );
   }
 
-  return <WorkspaceLayout sendPrompt={sendPrompt} sendInterrupt={sendInterrupt} sessionId={sessionId} />;
+  return (
+    <WorkspaceLayout
+      sendPrompt={sendPrompt}
+      sendInterrupt={sendInterrupt}
+      sessionId={sessionId}
+      sessions={sessions}
+      onNewSession={handleNewSession}
+      onSwitchSession={switchSession}
+      onDeleteSession={handleDeleteSession}
+      onRenameSession={handleRenameSession}
+    />
+  );
 }
 
 function ToggleThemeButton() {
@@ -107,13 +194,25 @@ function DownloadAllButton({ sessionId }: { sessionId: string | null }) {
   );
 }
 
-function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt: (t: string) => void; sendInterrupt: () => void; sessionId: string | null }) {
+function WorkspaceLayout({
+  sendPrompt, sendInterrupt, sessionId, sessions, onNewSession, onSwitchSession, onDeleteSession, onRenameSession
+}: {
+  sendPrompt: (t: string) => void;
+  sendInterrupt: () => void;
+  sessionId: string | null;
+  sessions: any[];
+  onNewSession: () => void;
+  onSwitchSession: (sid: string) => void;
+  onDeleteSession: (sid: string) => void;
+  onRenameSession: (sid: string, title: string) => void;
+}) {
   const agentState = useChatStore((s) => s.agentState);
   const connected = useChatStore((s) => s.connected);
+  const logout = useAuthStore((s) => s.logout);
+  const user = useAuthStore((s) => s.user);
 
   return (
     <div className="h-full flex flex-col" style={{ background: "var(--bg)" }}>
-      {/* Header */}
       <header
         className="flex items-center justify-between px-4 py-2"
         style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
@@ -131,42 +230,31 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
           <DownloadAllButton sessionId={sessionId} />
           <ToggleThemeButton />
           {(agentState === "thinking" || agentState === "executing") && (
-            <button
-              onClick={sendInterrupt}
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors bg-red-600 hover:bg-red-500 text-white"
-            >
+            <button onClick={sendInterrupt} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors bg-red-600 hover:bg-red-500 text-white">
               ■ Stop
             </button>
           )}
-          <span className="text-xs capitalize" style={{ color: "var(--text-secondary)" }}>
-            {agentState}
-          </span>
+          <span className="text-xs capitalize" style={{ color: "var(--text-secondary)" }}>{agentState}</span>
           {(agentState === "thinking") && (
             <span className="animate-spin w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full inline-block" />
           )}
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>{user?.username}</span>
+          <button onClick={() => { logout(); window.location.href = "/login"; }} className="text-xs px-2 py-1 rounded transition-colors" style={{ color: "var(--text-muted)" }}>
+            Logout
+          </button>
         </div>
       </header>
 
-      {/* Main content */}
       <div className="flex-1 flex min-h-0">
-        {/* Left: File Tree */}
-        <aside
-          className="w-56 overflow-y-auto p-2"
-          style={{ borderRight: "1px solid var(--border)" }}
-        >
+        <aside className="w-56 overflow-y-auto p-2" style={{ borderRight: "1px solid var(--border)" }}>
+          <SessionPanel sessions={sessions} currentSessionId={sessionId} onNewSession={onNewSession} onSwitchSession={onSwitchSession} onDeleteSession={onDeleteSession} onRenameSession={onRenameSession} />
+          <div style={{ height: 1, background: "var(--border)", margin: "8px 0" }} />
           <FileTreePanel sessionId={sessionId} />
         </aside>
-
-        {/* Center: Chat or Ad */}
         <main className="flex-1 flex flex-col min-w-0" style={{ position: "relative" }}>
           <CenterPanel sendPrompt={sendPrompt} />
         </main>
-
-        {/* Right: Editor */}
-        <aside
-          className="w-96 border-l overflow-hidden hidden lg:block"
-          style={{ minWidth: 0, borderColor: "var(--border)" }}
-        >
+        <aside className="w-96 border-l overflow-hidden hidden lg:block" style={{ minWidth: 0, borderColor: "var(--border)" }}>
           <EditorPanel />
         </aside>
       </div>
@@ -177,62 +265,92 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
 import ChatPanel from "../components/chat/ChatPanel";
 import ChatInput from "../components/chat/ChatInput";
 
+/* Session panel */
+function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSession, onDeleteSession }: {
+  sessions: any[];
+  currentSessionId: string | null;
+  onNewSession: () => void;
+  onSwitchSession: (sid: string) => void;
+  onDeleteSession: (sid: string) => void;
+  onRenameSession: (sid: string, title: string) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+          Sessions
+        </span>
+        <button onClick={onNewSession} className="text-xs px-1.5 py-0.5 rounded" style={{ color: "var(--text-muted)" }}>
+          + New
+        </button>
+      </div>
+      {sessions.length === 0 ? (
+        <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>No sessions</p>
+      ) : (
+        <div className="space-y-0.5">
+          {sessions.map((s: any) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-1 px-1 py-0.5 text-xs rounded cursor-pointer group"
+              style={{
+                color: s.id === currentSessionId ? "var(--text-primary)" : "var(--text-secondary)",
+                background: s.id === currentSessionId ? "var(--hover-bg, rgba(255,255,255,0.05))" : "transparent",
+              }}
+              onClick={() => onSwitchSession(s.id)}
+            >
+              <span className="truncate flex-1">{s.title}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteSession(s.id); }}
+                className="opacity-0 group-hover:opacity-100 px-0.5"
+                title="Delete session"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FileTreePanel({ sessionId }: { sessionId: string | null }) {
   const fileTree = useChatStore((s) => s.fileTree);
 
   return (
     <div>
-      <div
-        className="text-xs font-medium uppercase tracking-wider mb-2 px-1"
-        style={{ color: "var(--text-muted)" }}
-      >
+      <div className="text-xs font-medium uppercase tracking-wider mb-2 px-1" style={{ color: "var(--text-muted)" }}>
         Files
       </div>
       {fileTree.length === 0 ? (
         <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>No files yet</p>
       ) : (
         <div className="space-y-0.5">
-          {fileTree
-            .filter((e) => e.type === "file")
-            .map((entry) => (
-              <div
-                key={entry.name}
-                className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
-                style={{
-                  color: "var(--text-secondary)",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
-                  <span className="text-xs">📄</span>
-                  <span className="truncate">{entry.name}</span>
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank");
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs"
-                  style={{ color: "var(--text-muted)" }}
-                  title="Download file"
-                >
-                  ⬇
-                </button>
-              </div>
-            ))}
-          {fileTree
-            .filter((e) => e.type === "directory")
-            .map((entry) => (
-              <div
-                key={entry.name}
-                className="flex items-center gap-1.5 px-1 py-0.5 text-xs"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <span>📁</span>
-                <span>{entry.name}</span>
-              </div>
-            ))}
+          {fileTree.filter((e) => e.type === "file").map((entry) => (
+            <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
+              style={{ color: "var(--text-secondary)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
+                <span className="text-xs">📄</span>
+                <span className="truncate">{entry.name}</span>
+              </span>
+              <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank"); }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="Download file">
+                ⬇
+              </button>
+            </div>
+          ))}
+          {fileTree.filter((e) => e.type === "directory").map((entry) => (
+            <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+              <span>📁</span>
+              <span>{entry.name}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -244,19 +362,14 @@ function EditorPanel() {
   const fileContents = useChatStore((s) => s.fileContents);
 
   if (openFiles.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>
-        Click a file to preview
-      </div>
-    );
+    return <div className="h-full flex items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>Click a file to preview</div>;
   }
 
   const currentFile = openFiles[openFiles.length - 1];
   const content = fileContents[currentFile] || "";
   const getLang = (name: string) => {
     if (name.endsWith(".py")) return "python";
-    if (name.endsWith(".js") || name.endsWith(".ts") || name.endsWith(".tsx"))
-      return "typescript";
+    if (name.endsWith(".js") || name.endsWith(".ts") || name.endsWith(".tsx")) return "typescript";
     if (name.endsWith(".html")) return "html";
     if (name.endsWith(".css")) return "css";
     if (name.endsWith(".json")) return "json";
@@ -266,22 +379,10 @@ function EditorPanel() {
 
   return (
     <div className="h-full flex flex-col">
-      <div
-        className="flex items-center px-3 py-1.5"
-        style={{
-          background: "var(--surface)",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
+      <div className="flex items-center px-3 py-1.5" style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <div className="flex items-center gap-1 text-xs" style={{ fontFamily: "monospace", color: "var(--text-secondary)" }}>
           <span style={{ color: "var(--text-primary)" }}>{currentFile}</span>
-          <button
-            onClick={() => useChatStore.getState().closeFile(currentFile)}
-            className="ml-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            ×
-          </button>
+          <button onClick={() => useChatStore.getState().closeFile(currentFile)} className="ml-1" style={{ color: "var(--text-muted)" }}>×</button>
         </div>
       </div>
       <div className="flex-1 overflow-auto p-0">
@@ -293,24 +394,12 @@ function EditorPanel() {
 
 function SimpleEditor({ code }: { code: string }) {
   return (
-    <pre
-      className="h-full overflow-auto p-4 text-sm leading-relaxed"
-      style={{
-        fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
-        fontSize: "13px",
-        background: "var(--editor-bg)",
-        color: "var(--text-primary)",
-        margin: 0,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-all",
-        tabSize: 2,
-      }}
-    >
-      <code>
-        {code || (
-          <span style={{ color: "var(--text-muted)" }}>// empty file</span>
-        )}
-      </code>
+    <pre className="h-full overflow-auto p-4 text-sm leading-relaxed" style={{
+      fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
+      fontSize: "13px", background: "var(--editor-bg)", color: "var(--text-primary)",
+      margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", tabSize: 2,
+    }}>
+      <code>{code || <span style={{ color: "var(--text-muted)" }}>// empty file</span>}</code>
     </pre>
   );
 }
@@ -320,20 +409,10 @@ function CenterPanel({ sendPrompt }: { sendPrompt: (t: string) => void }) {
   const setShowAds = useChatStore((s) => s.setShowAds);
 
   if (showAds) {
-    return (
-      <div
-        className="flex-1 flex flex-col min-w-0"
-        style={{ position: "absolute", inset: 0, zIndex: 20 }}
-      >
-        <AdOverlay onClose={() => setShowAds(false)} />
-      </div>
-    );
+    return <div className="flex-1 flex flex-col min-w-0" style={{ position: "absolute", inset: 0, zIndex: 20 }}>
+      <AdOverlay onClose={() => setShowAds(false)} />
+    </div>;
   }
 
-  return (
-    <>
-      <ChatPanel />
-      <ChatInput onSend={sendPrompt} />
-    </>
-  );
+  return <><ChatPanel /><ChatInput onSend={sendPrompt} /></>;
 }

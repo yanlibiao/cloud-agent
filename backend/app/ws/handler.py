@@ -4,10 +4,14 @@ import json
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from jose import JWTError, jwt
+from sqlalchemy import select
 
 from app.agent.loop import AgentLoop
 from app.agent.types import ServerEvent
 from app.config import settings
+from app.db.database import async_session_factory
+from app.db.models import DBSession
 from app.llm.client import LLMClient
 from app.sandbox.manager import sandbox_manager
 from app.tools.registry import create_default_registry
@@ -25,6 +29,39 @@ tool_registry = create_default_registry()
 async def agent_websocket(websocket: WebSocket, session_id: str):
     await websocket.accept()
     logger.info(f"WebSocket connected: session={session_id}")
+
+    # Validate JWT token from query param
+    token = websocket.query_params.get("token", "")
+    if not token:
+        await websocket.send_json(
+            ServerEvent(type="error", data={"message": "Authentication required"}).model_dump()
+        )
+        await websocket.close()
+        return
+
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise ValueError("Invalid token payload")
+    except (JWTError, ValueError):
+        await websocket.send_json(
+            ServerEvent(type="error", data={"message": "Invalid token"}).model_dump()
+        )
+        await websocket.close()
+        return
+
+    # Verify session belongs to user
+    async with async_session_factory() as db:
+        result = await db.execute(
+            select(DBSession).where(DBSession.id == session_id, DBSession.user_id == user_id)
+        )
+        if not result.scalar_one_or_none():
+            await websocket.send_json(
+                ServerEvent(type="error", data={"message": "Session not found"}).model_dump()
+            )
+            await websocket.close()
+            return
 
     # Get or create sandbox
     sandbox = sandbox_manager.get_session(session_id)
