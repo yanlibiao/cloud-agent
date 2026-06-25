@@ -67,8 +67,8 @@ export const useChatStore = create<SessionState>((set, get) => ({
   setConnected: (connected) => set({ connected }),
   setAgentState: (agentState) => {
     set({ agentState });
-    // When agent starts working, show ads again
-    if (agentState === "thinking" || agentState === "executing") {
+    // When agent starts executing tools, show ads
+    if (agentState === "executing") {
       set({ showAds: true });
     }
   },

@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { useChatStore } from "../stores/chatStore";
 
 const AD_IMAGES: string[] = [
-  "/ads/ad1.svg",
-  "/ads/ad2.svg",
-  "/ads/ad3.svg",
-  "/ads/ad4.svg",
-  "/ads/ad5.svg",
+  "/ads/ad1.jpeg",
+  "/ads/ad2.jpg",
+  "/ads/ad3.jpg",
+  "/ads/ad4.jpg",
+  "/ads/ad5.jpg",
+  "/ads/ad6.jpg",
+  "/ads/ad7.jpg",
 ];
 
 const AD_DURATION = 15000; // 15 seconds per ad
@@ -28,7 +30,7 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
   );
 
   const hasImages = AD_IMAGES.length > 0;
-  const isWorking = agentState === "thinking" || agentState === "executing";
+  const isExecuting = agentState === "executing";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -113,8 +115,8 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
         />
       </div>
 
-      {/* Close button — only when agent is idle */}
-      {!isWorking && (
+      {/* Close button — only when NOT executing */}
+      {!isExecuting && (
         <button
           onClick={onClose}
           style={{
