@@ -66,8 +66,19 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
                 # Start the agent loop in a background task so we can
                 # still receive interrupt messages while it runs.
                 async def stream_turn():
-                    async for event in agent_loop.run_turn(msg.text, sandbox):
-                        await websocket.send_json(event.model_dump())
+                    try:
+                        async for event in agent_loop.run_turn(msg.text, sandbox):
+                            await websocket.send_json(event.model_dump())
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as e:
+                        logger.exception(f"Agent loop error: session={session_id}")
+                        try:
+                            await websocket.send_json(
+                                ServerEvent(type="error", data={"message": f"Agent error: {str(e)}"}).model_dump()
+                            )
+                        except Exception:
+                            pass
 
                 current_run = asyncio.create_task(stream_turn())
 
