@@ -7,6 +7,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -14,11 +15,13 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
     try {
       const data = await api.auth.register(username, password);
       setAuth(data.token, data.user);
-      navigate("/");
+      setSuccess("🎉 Registration successful! Redirecting...");
+      setTimeout(() => navigate("/"), 1200);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -99,6 +102,9 @@ export default function RegisterPage() {
 
           {error && (
             <p style={{ color: "#f87171", fontSize: 13, marginBottom: 12 }}>{error}</p>
+          )}
+          {success && (
+            <p style={{ color: "#4ade80", fontSize: 13, marginBottom: 12 }}>{success}</p>
           )}
 
           <button
