@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+  <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f093fb"/><stop offset="100%" style="stop-color:#f5576c"/></linearGradient></defs>
+  <rect width="400" height="600" fill="url(#g)"/>
+  <circle cx="200" cy="140" r="60" fill="rgba(255,255,255,0.15)"/>
+  <text x="200" y="152" text-anchor="middle" fill="white" font-size="48">🚀</text>
+  <text x="200" y="260" text-anchor="middle" fill="white" font-size="24" font-family="system-ui,sans-serif" font-weight="bold">10x 开发效率</text>
+  <text x="200" y="290" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="14" font-family="system-ui,sans-serif">AI Coding Agent 让编程更简单</text>
+  <rect x="100" y="340" width="200" height="46" rx="23" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <text x="200" y="369" text-anchor="middle" fill="white" font-size="16" font-family="system-ui,sans-serif" font-weight="bold">立即体验</text>
+  <line x1="60" y1="430" x2="340" y2="430" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="200" y="460" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="12" font-family="system-ui,sans-serif">自动代码生成 · 智能调试</text>
+  <text x="200" y="480" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="12" font-family="system-ui,sans-serif">代码审查 · 自动化测试</text>
+</svg>

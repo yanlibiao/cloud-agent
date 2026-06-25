@@ -22,6 +22,7 @@ interface SessionState {
   connected: boolean;
   agentState: AgentState;
   theme: "dark" | "light";
+  showAds: boolean;
   messages: ChatMessage[];
   fileTree: FileEntry[];
   fileTreePath: string;
@@ -34,6 +35,7 @@ interface SessionState {
   setConnected: (connected: boolean) => void;
   setAgentState: (state: AgentState) => void;
   toggleTheme: () => void;
+  setShowAds: (show: boolean) => void;
   addMessage: (msg: ChatMessage) => void;
   updateLastStreamingMessage: (text: string) => void;
   finalizeStreaming: () => void;
@@ -52,6 +54,7 @@ export const useChatStore = create<SessionState>((set, get) => ({
   connected: false,
   agentState: "idle",
   theme: "dark",
+  showAds: true,
   messages: [],
   fileTree: [],
   fileTreePath: ".",
@@ -62,7 +65,13 @@ export const useChatStore = create<SessionState>((set, get) => ({
 
   setSessionId: (id) => set({ sessionId: id }),
   setConnected: (connected) => set({ connected }),
-  setAgentState: (agentState) => set({ agentState }),
+  setAgentState: (agentState) => {
+    set({ agentState });
+    // When agent starts working, show ads again
+    if (agentState === "thinking" || agentState === "executing") {
+      set({ showAds: true });
+    }
+  },
 
   toggleTheme: () =>
     set((state) => {
@@ -70,6 +79,8 @@ export const useChatStore = create<SessionState>((set, get) => ({
       document.documentElement.setAttribute("data-theme", next);
       return { theme: next };
     }),
+
+  setShowAds: (show) => set({ showAds: show }),
 
   addMessage: (msg) =>
     set((state) => ({ messages: [...state.messages, msg] })),

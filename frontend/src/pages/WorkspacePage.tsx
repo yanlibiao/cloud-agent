@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useChatStore } from "../stores/chatStore";
 import { useAgent, loadFileContent } from "../ws/useAgent";
+import AdOverlay from "../components/AdOverlay";
 
 async function createSession(): Promise<string> {
   const res = await fetch("/api/sessions", { method: "POST" });
@@ -163,12 +164,12 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
             <ChatInput onSend={sendPrompt} />
           </main>
 
-          {/* Right: Editor */}
+          {/* Right: Ad Overlay or Editor */}
           <aside
             className="w-96 border-l overflow-hidden hidden lg:block"
             style={{ minWidth: 0, borderColor: "var(--border)" }}
           >
-            <EditorPanel />
+            <RightPanel sessionId={sessionId} />
           </aside>
         </div>
 
@@ -321,4 +322,15 @@ function SimpleEditor({ code }: { code: string }) {
       </code>
     </pre>
   );
+}
+
+function RightPanel({ sessionId }: { sessionId: string | null }) {
+  const showAds = useChatStore((s) => s.showAds);
+  const setShowAds = useChatStore((s) => s.setShowAds);
+
+  if (showAds) {
+    return <AdOverlay onClose={() => setShowAds(false)} />;
+  }
+
+  return <EditorPanel />;
 }
