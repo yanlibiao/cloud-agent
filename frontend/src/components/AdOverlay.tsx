@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useChatStore } from "../stores/chatStore";
 
-// Place your ad images in frontend/public/ads/ folder
-// Then add their paths here, e.g. "/ads/ad1.png"
 const AD_IMAGES: string[] = [
   "/ads/ad1.svg",
   "/ads/ad2.svg",
@@ -14,11 +12,11 @@ const AD_IMAGES: string[] = [
 const AD_DURATION = 15000; // 15 seconds per ad
 
 const PLACEHOLDER_ADS = [
-  { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "AI Powered" },
-  { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", text: "Cloud Native" },
-  { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", text: "Smart Automation" },
-  { bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", text: "Secure & Fast" },
-  { bg: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", text: "Always Online" },
+  { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "AI Powered", sub: "Cloud Agent Pro" },
+  { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", text: "10x 开发效率", sub: "AI Coding Agent" },
+  { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", text: "云端沙箱", sub: "安全隔离 · 随时随地" },
+  { bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", text: "企业级安全", sub: "SOC 2 · 数据加密" },
+  { bg: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", text: "多模型支持", sub: "DeepSeek · GPT · Claude" },
 ];
 
 export default function AdOverlay({ onClose }: { onClose: () => void }) {
@@ -32,7 +30,6 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
   const hasImages = AD_IMAGES.length > 0;
   const isWorking = agentState === "thinking" || agentState === "executing";
 
-  // Cycle timer
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prev) => prev + 1);
@@ -40,21 +37,18 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Compute which ad to show
   const imgIdx = hasImages ? shuffled[currentIndex % AD_IMAGES.length] : 0;
   const placeholderIdx = currentIndex % PLACEHOLDER_ADS.length;
   const showImage = hasImages && !failedImages.has(imgIdx);
 
   return (
-    <aside
-      className="hidden lg:block"
+    <div
       style={{
-        width: "384px",
-        minWidth: "384px",
+        width: "100%",
         height: "100%",
         position: "relative",
         overflow: "hidden",
-        borderLeft: "1px solid var(--border, #2a2a3a)",
+        background: "#000",
       }}
     >
       {showImage ? (
@@ -88,15 +82,36 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
             transition: "background 0.5s ease",
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.8 }}>📢</div>
-          <div style={{ fontSize: 20, fontWeight: 600, opacity: 0.9 }}>
+          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.8 }}>📢</div>
+          <div style={{ fontSize: 28, fontWeight: 700, opacity: 0.95, marginBottom: 8 }}>
             {PLACEHOLDER_ADS[placeholderIdx].text}
           </div>
-          <div style={{ fontSize: 12, marginTop: 6, opacity: 0.5 }}>
-            Ad Space
+          <div style={{ fontSize: 16, opacity: 0.6 }}>
+            {PLACEHOLDER_ADS[placeholderIdx].sub}
           </div>
         </div>
       )}
+
+      {/* Progress bar */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: "rgba(255,255,255,0.15)",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            background: "rgba(255,255,255,0.5)",
+            transition: "width 0.3s linear",
+            width: `${((currentIndex % AD_IMAGES.length) + 1) / AD_IMAGES.length * 100}%`,
+          }}
+        />
+      </div>
 
       {/* Close button — only when agent is idle */}
       {!isWorking && (
@@ -104,23 +119,23 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           style={{
             position: "absolute",
-            top: 8,
-            right: 8,
-            padding: "4px 10px",
-            fontSize: 12,
-            fontWeight: 500,
-            borderRadius: 4,
-            background: "rgba(0,0,0,0.65)",
+            top: 12,
+            right: 12,
+            padding: "6px 14px",
+            fontSize: 13,
+            fontWeight: 600,
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.7)",
             color: "#fff",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid rgba(255,255,255,0.2)",
             cursor: "pointer",
             zIndex: 10,
             backdropFilter: "blur(4px)",
           }}
         >
-          ✕ Close Ad
+          ✕ 关闭广告
         </button>
       )}
-    </aside>
+    </div>
   );
 }

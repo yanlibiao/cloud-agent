@@ -158,18 +158,17 @@ function WorkspaceLayout({ sendPrompt, sendInterrupt, sessionId }: { sendPrompt:
             <FileTreePanel sessionId={sessionId} />
           </aside>
 
-          {/* Center: Chat */}
-          <main className="flex-1 flex flex-col min-w-0">
-            <ChatPanel />
-            <ChatInput onSend={sendPrompt} />
+          {/* Center: Chat or Ad */}
+          <main className="flex-1 flex flex-col min-w-0" style={{ position: "relative" }}>
+            <CenterPanel sendPrompt={sendPrompt} />
           </main>
 
-          {/* Right: Ad Overlay or Editor */}
+          {/* Right: Editor (always visible) */}
           <aside
             className="w-96 border-l overflow-hidden hidden lg:block"
             style={{ minWidth: 0, borderColor: "var(--border)" }}
           >
-            <RightPanel sessionId={sessionId} />
+            <EditorPanel />
           </aside>
         </div>
 
@@ -324,13 +323,25 @@ function SimpleEditor({ code }: { code: string }) {
   );
 }
 
-function RightPanel({ sessionId }: { sessionId: string | null }) {
+function CenterPanel({ sendPrompt }: { sendPrompt: (t: string) => void }) {
   const showAds = useChatStore((s) => s.showAds);
   const setShowAds = useChatStore((s) => s.setShowAds);
 
   if (showAds) {
-    return <AdOverlay onClose={() => setShowAds(false)} />;
+    return (
+      <div
+        className="flex-1 flex flex-col min-w-0"
+        style={{ position: "absolute", inset: 0, zIndex: 20 }}
+      >
+        <AdOverlay onClose={() => setShowAds(false)} />
+      </div>
+    );
   }
 
-  return <EditorPanel />;
+  return (
+    <>
+      <ChatPanel />
+      <ChatInput onSend={sendPrompt} />
+    </>
+  );
 }
