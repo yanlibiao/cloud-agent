@@ -24,7 +24,7 @@ class AuthRequest(BaseModel):
 
 def _create_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=30)
-    payload = {"sub": user_id, "exp": expire}
+    payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
