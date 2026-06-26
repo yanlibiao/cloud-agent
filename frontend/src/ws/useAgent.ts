@@ -132,7 +132,9 @@ export function useAgent() {
 
 async function fetchFileTree(sessionId: string, notifyOnNew = false) {
   try {
-    const res = await fetch(`/api/files/${sessionId}/tree`);
+    const { fileTreePath } = useChatStore.getState();
+    const pathParam = fileTreePath && fileTreePath !== "." ? `?path=${encodeURIComponent(fileTreePath)}` : "";
+    const res = await fetch(`/api/files/${sessionId}/tree${pathParam}`);
     if (!res.ok) return;
     const data = await res.json();
     if (data.entries) {
