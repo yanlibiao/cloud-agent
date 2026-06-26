@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Sandbox / Docker
     sandbox_image: str = "cloud-agent-sandbox:latest"
-    sandbox_network_disabled: bool = True
+    sandbox_network_disabled: bool = False
     sandbox_memory_limit: str = "2g"
     sandbox_cpu_quota: int = 50000
     sandbox_pids_limit: int = 256
