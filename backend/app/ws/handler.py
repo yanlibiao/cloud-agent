@@ -26,50 +26,52 @@ tool_registry = create_default_registry()
 
 # Per-session agent loops so different sessions stay isolated
 _session_loops: dict[str, AgentLoop] = {}
+# Track how many messages were already saved per session
+_session_saved_count: dict[str, int] = {}
 
 
-async def _save_message(session_id: str, role: str, msg: Message) -> None:
-    """Persist a single message to the DB."""
-    tool_calls_data = None
-    if msg.tool_calls:
-        tool_calls_data = [
-            {
-                "id": tc.id,
-                "name": tc.name,
-                "args": tc.args,
-                "status": tc.status.value if hasattr(tc.status, "value") else tc.status,
-                "result": tc.result,
-                "error": tc.error,
-                "exit_code": tc.exit_code,
-            }
-            for tc in msg.tool_calls
-        ]
-
+async def _save_messages(session_id: str, messages: list[Message]) -> None:
+    """Persist a batch of messages to the DB, skipping user messages (saved by frontend init)."""
+    if not messages:
+        return
     try:
         async with async_session_factory() as db:
-            db_msg = DBMessage(
-                session_id=session_id,
-                role=role,
-                content=msg.content or "",
-                tool_calls=tool_calls_data,
-                tool_call_id=msg.tool_call_id,
-                tool_name=msg.tool_name,
-            )
-            db.add(db_msg)
-            await db.commit()
+            for msg in messages:
+                role_str = msg.role.value if hasattr(msg.role, "value") else msg.role
+                tool_calls_data = None
+                if msg.tool_calls:
+                    tool_calls_data = [
+                        {
+                            "id": tc.id,
+                            "name": tc.name,
+                            "args": tc.args,
+                            "status": tc.status.value if hasattr(tc.status, "value") else tc.status,
+                            "result": tc.result,
+                            "error": tc.error,
+                            "exit_code": tc.exit_code,
+                        }
+                        for tc in msg.tool_calls
+                    ]
 
-            # Update session updated_at
-            await db.execute(
-                select(DBSession).where(DBSession.id == session_id)
-            )
-            stmt = select(DBSession).where(DBSession.id == session_id)
-            result = await db.execute(stmt)
+                db_msg = DBMessage(
+                    session_id=session_id,
+                    role=role_str,
+                    content=msg.content or "",
+                    tool_calls=tool_calls_data,
+                    tool_call_id=msg.tool_call_id,
+                    tool_name=msg.tool_name,
+                )
+                db.add(db_msg)
+
+            # Update session timestamp
+            result = await db.execute(select(DBSession).where(DBSession.id == session_id))
             sess = result.scalar_one_or_none()
             if sess:
                 sess.updated_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
-                await db.commit()
+
+            await db.commit()
     except Exception as e:
-        logger.error(f"Failed to save message to DB: {e}")
+        logger.error(f"Failed to save messages to DB: {e}")
 
 
 async def _load_history(session_id: str) -> list[Message]:
@@ -117,18 +119,6 @@ async def _load_history(session_id: str) -> list[Message]:
         return messages
     except Exception as e:
         logger.error(f"Failed to load history: {e}")
-        return []
-
-
-def _message_to_role(msg: Message) -> str:
-    """Map a Message to its DB role string."""
-    if msg.role == MessageRole.USER:
-        return "user"
-    elif msg.role == MessageRole.ASSISTANT:
-        return "assistant"
-    elif msg.role == MessageRole.TOOL:
-        return "tool"
-    return "user"
 
 
 @ws_router.websocket("/ws/{session_id}")
@@ -186,10 +176,12 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
     history = await _load_history(session_id)
     logger.info(f"Loaded {len(history)} history messages for session {session_id}")
 
+    # Track already-saved message count to avoid re-saving on reconnect
+    _session_saved_count[session_id] = len(history)
+
     # Reuse or create per-session agent loop with history
     if session_id in _session_loops:
         agent_loop = _session_loops[session_id]
-        # Update messages in case they were loaded fresh
         if history:
             agent_loop.messages = history
     else:
@@ -217,11 +209,8 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
             msg = ClientMessage.model_validate_json(raw)
 
             if msg.type == "user_prompt" and msg.text:
-                # Count messages before the turn so we know what's new
-                msg_count_before = len(agent_loop.messages)
-
-                # Persist user message immediately
-                await _save_message(session_id, "user", Message(role=MessageRole.USER, content=msg.text))
+                # Track message count before this turn so we only save new ones
+                count_before = len(agent_loop.messages)
 
                 async def stream_turn():
                     try:
@@ -238,11 +227,11 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
                         except Exception:
                             pass
                     finally:
-                        # Persist only new messages added during this turn (assistant + tool)
-                        for m in agent_loop.messages[msg_count_before:]:
-                            role_str = _message_to_role(m)
-                            if role_str in ("assistant", "tool"):
-                                await _save_message(session_id, role_str, m)
+                        # Save only new messages added during this turn
+                        new_msgs = agent_loop.messages[count_before:]
+                        if new_msgs:
+                            await _save_messages(session_id, new_msgs)
+                            _session_saved_count[session_id] = len(agent_loop.messages)
 
                 current_run = asyncio.create_task(stream_turn())
 
@@ -252,7 +241,6 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
                     agent_loop.cancel()
                     await current_run
                     current_run = None
-                    # Reset agent state to idle
                     await websocket.send_json(
                         ServerEvent(type="turn_completed", data={"text": "[Stopped]"}).model_dump()
                     )
@@ -261,7 +249,6 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
         logger.info(f"WebSocket disconnected: session={session_id}")
         if current_run and not current_run.done():
             agent_loop.cancel()
-        # Keep agent_loop in memory so it persists if user reconnects
     except Exception as e:
         logger.exception(f"WebSocket error: session={session_id}")
         try:
