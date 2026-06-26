@@ -38,7 +38,7 @@ export default function WorkspacePage() {
       const cleanup = connect(sid);
       cleanupRef.current = cleanup || null;
     } catch (e: any) {
-      setError(e.message || "Failed to create session");
+      setError(e.message || "创建会话失败");
     }
   };
 
@@ -77,7 +77,7 @@ export default function WorkspacePage() {
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme", "light");
   }, []);
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function WorkspacePage() {
         }
       } catch (e: any) {
         if (!cancelled) {
-          setError(e.message || "Failed to create session");
+          setError(e.message || "创建会话失败");
           setLoading(false);
         }
       }
@@ -123,7 +123,7 @@ export default function WorkspacePage() {
       <div className="h-full flex items-center justify-center" style={{ background: "var(--bg)" }}>
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Starting session...</p>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>启动会话...</p>
         </div>
       </div>
     );
@@ -134,7 +134,7 @@ export default function WorkspacePage() {
       <div className="h-full flex items-center justify-center" style={{ background: "var(--bg)" }}>
         <div className="text-center max-w-md">
           <p className="text-red-400 text-sm mb-2">{error}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Make sure the backend server is running.</p>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>请确认后端服务正在运行</p>
         </div>
       </div>
     );
@@ -169,7 +169,7 @@ function ToggleThemeButton() {
       onClick={handleToggle}
       className="p-1.5 rounded-md text-xs transition-colors"
       style={{ color: "var(--text-muted)" }}
-      title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      title={`切换到${theme === "dark" ? "明亮" : "深色"}模式`}
     >
       {theme === "dark" ? "☀️" : "🌙"}
     </button>
@@ -187,9 +187,9 @@ function DownloadAllButton({ sessionId }: { sessionId: string | null }) {
       onClick={handleDownloadAll}
       className="p-1.5 rounded-md text-xs transition-colors flex items-center gap-1"
       style={{ color: "var(--text-muted)" }}
-      title="Download all workspace files as zip"
+      title="下载所有文件"
     >
-      ⬇ All
+      ⬇ 全部下载
     </button>
   );
 }
@@ -223,7 +223,7 @@ function WorkspaceLayout({
           </h1>
           <span className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {connected ? "connected" : "disconnected"}
+            {connected ? "已连接" : "已断开"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -231,16 +231,18 @@ function WorkspaceLayout({
           <ToggleThemeButton />
           {(agentState === "thinking" || agentState === "executing") && (
             <button onClick={sendInterrupt} className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors bg-red-600 hover:bg-red-500 text-white">
-              ■ Stop
+              ■ 停止
             </button>
           )}
-          <span className="text-xs capitalize" style={{ color: "var(--text-secondary)" }}>{agentState}</span>
+          <span className="text-xs capitalize" style={{ color: "var(--text-secondary)" }}>
+            {agentState === "idle" ? "空闲" : agentState === "thinking" ? "思考中" : agentState === "executing" ? "执行中" : agentState}
+          </span>
           {(agentState === "thinking") && (
             <span className="animate-spin w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full inline-block" />
           )}
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>{user?.username}</span>
           <button onClick={() => { logout(); window.location.href = "/login"; }} className="text-xs px-2 py-1 rounded transition-colors" style={{ color: "var(--text-muted)" }}>
-            Logout
+            退出登录
           </button>
         </div>
       </header>
@@ -281,14 +283,14 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-          Sessions
+          会话
         </span>
         <button onClick={onNewSession} className="text-xs px-1.5 py-0.5 rounded" style={{ color: "var(--text-muted)" }}>
-          + New
+          + 新建
         </button>
       </div>
       {sessions.length === 0 ? (
-        <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>No sessions</p>
+        <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无会话</p>
       ) : (
         <div className="space-y-0.5">
           {sessions.map((s: any) => (
@@ -297,7 +299,7 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
               className="flex items-center gap-1 px-1 py-0.5 text-xs rounded cursor-pointer group"
               style={{
                 color: s.id === currentSessionId ? "var(--text-primary)" : "var(--text-secondary)",
-                background: s.id === currentSessionId ? "var(--hover-bg, rgba(255,255,255,0.05))" : "transparent",
+                background: s.id === currentSessionId ? "var(--hover-bg, rgba(0,0,0,0.05))" : "transparent",
               }}
               onClick={() => onSwitchSession(s.id)}
             >
@@ -305,7 +307,7 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
               <button
                 onClick={(e) => { e.stopPropagation(); onDeleteSession(s.id); }}
                 className="opacity-0 group-hover:opacity-100 px-0.5"
-                title="Delete session"
+                title="删除会话"
               >
                 ×
               </button>
@@ -323,10 +325,10 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
   return (
     <div>
       <div className="text-xs font-medium uppercase tracking-wider mb-2 px-1" style={{ color: "var(--text-muted)" }}>
-        Files
+        文件
       </div>
       {fileTree.length === 0 ? (
-        <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>No files yet</p>
+        <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无文件</p>
       ) : (
         <div className="space-y-0.5">
           {fileTree.filter((e) => e.type === "file").map((entry) => (
@@ -340,7 +342,7 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
                 <span className="truncate">{entry.name}</span>
               </span>
               <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank"); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="Download file">
+                className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="下载文件">
                 ⬇
               </button>
             </div>
@@ -362,7 +364,7 @@ function EditorPanel() {
   const fileContents = useChatStore((s) => s.fileContents);
 
   if (openFiles.length === 0) {
-    return <div className="h-full flex items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>Click a file to preview</div>;
+    return <div className="h-full flex items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>点击文件以预览</div>;
   }
 
   const currentFile = openFiles[openFiles.length - 1];
@@ -399,7 +401,7 @@ function SimpleEditor({ code }: { code: string }) {
       fontSize: "13px", background: "var(--editor-bg)", color: "var(--text-primary)",
       margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", tabSize: 2,
     }}>
-      <code>{code || <span style={{ color: "var(--text-muted)" }}>// empty file</span>}</code>
+      <code>{code || <span style={{ color: "var(--text-muted)" }}>// 空文件</span>}</code>
     </pre>
   );
 }

@@ -23,6 +23,7 @@ const PLACEHOLDER_ADS = [
 
 export default function AdOverlay({ onClose }: { onClose: () => void }) {
   const agentState = useChatStore((s) => s.agentState);
+  const executionProgress = useChatStore((s) => s.executionProgress);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const [shuffled] = useState(() =>
@@ -30,7 +31,7 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
   );
 
   const hasImages = AD_IMAGES.length > 0;
-  const isExecuting = agentState === "executing";
+  const isIdle = agentState === "idle";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -48,95 +49,130 @@ export default function AdOverlay({ onClose }: { onClose: () => void }) {
       style={{
         width: "100%",
         height: "100%",
-        position: "relative",
-        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
         background: "#000",
+        position: "relative",
       }}
     >
-      {showImage ? (
-        <img
-          key={imgIdx}
-          src={AD_IMAGES[imgIdx]}
-          alt="advertisement"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            background: "#000",
-            display: "block",
-          }}
-          onError={() => {
-            setFailedImages((prev) => new Set(prev).add(imgIdx));
-          }}
-        />
-      ) : (
+      {/* Ad content area */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        {showImage ? (
+          <img
+            key={imgIdx}
+            src={AD_IMAGES[imgIdx]}
+            alt="advertisement"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              background: "#000",
+              display: "block",
+            }}
+            onError={() => {
+              setFailedImages((prev) => new Set(prev).add(imgIdx));
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: PLACEHOLDER_ADS[placeholderIdx].bg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              color: "#fff",
+              fontFamily: "system-ui, sans-serif",
+              transition: "background 0.5s ease",
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.8 }}>📢</div>
+            <div style={{ fontSize: 28, fontWeight: 700, opacity: 0.95, marginBottom: 8 }}>
+              {PLACEHOLDER_ADS[placeholderIdx].text}
+            </div>
+            <div style={{ fontSize: 16, opacity: 0.6 }}>
+              {PLACEHOLDER_ADS[placeholderIdx].sub}
+            </div>
+          </div>
+        )}
+
+        {/* Close button — only when idle (not executing), centered prominently */}
+        {isIdle && (
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              padding: "14px 36px",
+              fontSize: 18,
+              fontWeight: 700,
+              borderRadius: 12,
+              background: "rgba(0,0,0,0.75)",
+              color: "#fff",
+              border: "2px solid rgba(255,255,255,0.6)",
+              cursor: "pointer",
+              zIndex: 10,
+              backdropFilter: "blur(8px)",
+              letterSpacing: 2,
+            }}
+          >
+            ✕ 关闭广告
+          </button>
+        )}
+
+        {/* Progress bar */}
         <div
           style={{
-            width: "100%",
-            height: "100%",
-            background: PLACEHOLDER_ADS[placeholderIdx].bg,
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: "rgba(255,255,255,0.15)",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              background: "rgba(255,255,255,0.5)",
+              transition: "width 0.3s linear",
+              width: `${((currentIndex % AD_IMAGES.length) + 1) / AD_IMAGES.length * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Status bar below ad — shows agent execution progress */}
+      {agentState !== "idle" && agentState !== "error" && (
+        <div
+          style={{
+            height: 32,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flexDirection: "column",
-            color: "#fff",
+            gap: 8,
+            background: "rgba(255,255,255,0.08)",
+            borderTop: "1px solid rgba(255,255,255,0.1)",
             fontFamily: "system-ui, sans-serif",
-            transition: "background 0.5s ease",
+            fontSize: 12,
+            color: "rgba(255,255,255,0.7)",
           }}
         >
-          <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.8 }}>📢</div>
-          <div style={{ fontSize: 28, fontWeight: 700, opacity: 0.95, marginBottom: 8 }}>
-            {PLACEHOLDER_ADS[placeholderIdx].text}
-          </div>
-          <div style={{ fontSize: 16, opacity: 0.6 }}>
-            {PLACEHOLDER_ADS[placeholderIdx].sub}
-          </div>
+          <span style={{
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: agentState === "executing" ? "#4ade80" : "#fbbf24",
+            animation: agentState === "executing" ? "none" : "pulse 1s ease-in-out infinite",
+          }} />
+          {agentState === "thinking" && "Agent 正在思考..."}
+          {agentState === "executing" && (executionProgress || "Agent 正在执行任务...")}
         </div>
-      )}
-
-      {/* Progress bar */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          background: "rgba(255,255,255,0.15)",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            background: "rgba(255,255,255,0.5)",
-            transition: "width 0.3s linear",
-            width: `${((currentIndex % AD_IMAGES.length) + 1) / AD_IMAGES.length * 100}%`,
-          }}
-        />
-      </div>
-
-      {/* Close button — only when NOT executing */}
-      {!isExecuting && (
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            borderRadius: 6,
-            background: "rgba(0,0,0,0.7)",
-            color: "#fff",
-            border: "1px solid rgba(255,255,255,0.2)",
-            cursor: "pointer",
-            zIndex: 10,
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          ✕ 关闭广告
-        </button>
       )}
     </div>
   );

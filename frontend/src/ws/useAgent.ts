@@ -52,6 +52,11 @@ export function useAgent() {
             args: event.data?.args,
             status: "running",
           });
+          // Update progress with tool name
+          const toolName = event.data?.tool_name || "";
+          const args = event.data?.args || {};
+          const cmd = toolName === "exec_command" ? (args.command || "").slice(0, 60) : "";
+          s.setExecutionProgress(cmd ? `执行: ${cmd}` : `调用: ${toolName}`);
           break;
 
         case "tool_call_end":
@@ -68,6 +73,7 @@ export function useAgent() {
         case "turn_completed":
           s.setAgentState("idle");
           s.finalizeStreaming();
+          s.setExecutionProgress("100%");
           break;
 
         case "error":

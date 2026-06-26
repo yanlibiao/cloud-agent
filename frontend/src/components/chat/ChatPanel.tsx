@@ -122,7 +122,7 @@ export default function ChatPanel() {
           <p className="text-lg font-medium" style={{ color: "var(--text-secondary)" }}>
             Cloud Agent
           </p>
-          <p className="text-sm mt-1">Describe what you want to build</p>
+          <p className="text-sm mt-1">描述你想要构建的功能</p>
         </div>
       )}
       {messages

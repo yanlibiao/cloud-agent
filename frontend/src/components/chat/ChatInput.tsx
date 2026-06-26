@@ -51,7 +51,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            isDisabled ? "Agent is working..." : "Describe what you want to build..."
+            isDisabled ? "Agent 正在执行..." : "描述你想要构建的功能..."
           }
           disabled={isDisabled}
           rows={1}

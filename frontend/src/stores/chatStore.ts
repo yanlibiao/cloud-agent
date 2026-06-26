@@ -23,6 +23,7 @@ interface SessionState {
   agentState: AgentState;
   theme: "dark" | "light";
   showAds: boolean;
+  executionProgress: string;
   messages: ChatMessage[];
   fileTree: FileEntry[];
   fileTreePath: string;
@@ -36,6 +37,7 @@ interface SessionState {
   setAgentState: (state: AgentState) => void;
   toggleTheme: () => void;
   setShowAds: (show: boolean) => void;
+  setExecutionProgress: (progress: string) => void;
   setMessages: (msgs: ChatMessage[]) => void;
   addMessage: (msg: ChatMessage) => void;
   updateLastStreamingMessage: (text: string) => void;
@@ -54,8 +56,9 @@ export const useChatStore = create<SessionState>((set, get) => ({
   sessionId: null,
   connected: false,
   agentState: "idle",
-  theme: "dark",
-  showAds: true,
+  theme: "light",
+  showAds: false,
+  executionProgress: "",
   messages: [],
   fileTree: [],
   fileTreePath: ".",
@@ -70,7 +73,10 @@ export const useChatStore = create<SessionState>((set, get) => ({
     set({ agentState });
     // When agent starts executing tools, show ads
     if (agentState === "executing") {
-      set({ showAds: true });
+      set({ showAds: true, executionProgress: "" });
+    }
+    if (agentState === "idle") {
+      set({ executionProgress: "100%" });
     }
   },
 
@@ -82,6 +88,8 @@ export const useChatStore = create<SessionState>((set, get) => ({
     }),
 
   setShowAds: (show) => set({ showAds: show }),
+
+  setExecutionProgress: (progress) => set({ executionProgress: progress }),
 
   setMessages: (msgs) => set({ messages: msgs }),
 

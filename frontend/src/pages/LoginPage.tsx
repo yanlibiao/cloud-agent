@@ -33,30 +33,30 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg, #0f0f13)",
+        background: "var(--bg, #f5f5f7)",
         fontFamily: "system-ui, sans-serif",
       }}
     >
       <div
         style={{
-          background: "var(--surface, #1a1a24)",
-          border: "1px solid var(--border, #2a2a3a)",
+          background: "var(--surface, #fff)",
+          border: "1px solid var(--border, #e0e0e0)",
           borderRadius: 12,
           padding: "40px 48px",
           width: 360,
         }}
       >
-        <h1 style={{ color: "var(--text-primary, #e0e0e0)", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
+        <h1 style={{ color: "var(--text-primary, #1a1a1a)", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
           Cloud Agent
         </h1>
-        <p style={{ color: "var(--text-muted, #666)", fontSize: 14, marginBottom: 24 }}>
-          Sign in to your account
+        <p style={{ color: "var(--text-muted, #888)", fontSize: 14, marginBottom: 24 }}>
+          登录到您的账号
         </p>
 
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ color: "var(--text-secondary, #999)", fontSize: 13, display: "block", marginBottom: 4 }}>
-              Username
+            <label style={{ color: "var(--text-secondary, #666)", fontSize: 13, display: "block", marginBottom: 4 }}>
+              用户名
             </label>
             <input
               value={username}
@@ -65,9 +65,9 @@ export default function LoginPage() {
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 6,
-                border: "1px solid var(--border, #2a2a3a)",
-                background: "var(--editor-bg, #12121c)",
-                color: "var(--text-primary, #e0e0e0)",
+                border: "1px solid var(--border, #e0e0e0)",
+                background: "var(--editor-bg, #fafafa)",
+                color: "var(--text-primary, #1a1a1a)",
                 fontSize: 14,
                 outline: "none",
                 boxSizing: "border-box",
@@ -76,8 +76,8 @@ export default function LoginPage() {
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label style={{ color: "var(--text-secondary, #999)", fontSize: 13, display: "block", marginBottom: 4 }}>
-              Password
+            <label style={{ color: "var(--text-secondary, #666)", fontSize: 13, display: "block", marginBottom: 4 }}>
+              密码
             </label>
             <input
               type="password"
@@ -87,9 +87,9 @@ export default function LoginPage() {
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 6,
-                border: "1px solid var(--border, #2a2a3a)",
-                background: "var(--editor-bg, #12121c)",
-                color: "var(--text-primary, #e0e0e0)",
+                border: "1px solid var(--border, #e0e0e0)",
+                background: "var(--editor-bg, #fafafa)",
+                color: "var(--text-primary, #1a1a1a)",
                 fontSize: 14,
                 outline: "none",
                 boxSizing: "border-box",
@@ -117,14 +117,14 @@ export default function LoginPage() {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "登录中..." : "登录"}
           </button>
         </form>
 
-        <p style={{ color: "var(--text-muted, #666)", fontSize: 13, marginTop: 16, textAlign: "center" }}>
-          No account?{" "}
+        <p style={{ color: "var(--text-muted, #888)", fontSize: 13, marginTop: 16, textAlign: "center" }}>
+          还没有账号？{" "}
           <Link to="/register" style={{ color: "#60a5fa", textDecoration: "none" }}>
-            Register
+            注册
           </Link>
         </p>
       </div>

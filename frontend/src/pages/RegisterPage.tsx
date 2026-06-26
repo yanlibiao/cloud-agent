@@ -20,7 +20,7 @@ export default function RegisterPage() {
     try {
       const data = await api.auth.register(username, password);
       setAuth(data.token, data.user);
-      setSuccess("🎉 Registration successful! Redirecting...");
+      setSuccess("🎉 注册成功！即将跳转...");
       setTimeout(() => navigate("/"), 1200);
     } catch (err: any) {
       setError(err.message);
@@ -36,30 +36,30 @@ export default function RegisterPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg, #0f0f13)",
+        background: "var(--bg, #f5f5f7)",
         fontFamily: "system-ui, sans-serif",
       }}
     >
       <div
         style={{
-          background: "var(--surface, #1a1a24)",
-          border: "1px solid var(--border, #2a2a3a)",
+          background: "var(--surface, #fff)",
+          border: "1px solid var(--border, #e0e0e0)",
           borderRadius: 12,
           padding: "40px 48px",
           width: 360,
         }}
       >
-        <h1 style={{ color: "var(--text-primary, #e0e0e0)", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
+        <h1 style={{ color: "var(--text-primary, #1a1a1a)", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
           Cloud Agent
         </h1>
-        <p style={{ color: "var(--text-muted, #666)", fontSize: 14, marginBottom: 24 }}>
-          Create a new account
+        <p style={{ color: "var(--text-muted, #888)", fontSize: 14, marginBottom: 24 }}>
+          创建新账号
         </p>
 
         <form onSubmit={handleRegister}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ color: "var(--text-secondary, #999)", fontSize: 13, display: "block", marginBottom: 4 }}>
-              Username
+            <label style={{ color: "var(--text-secondary, #666)", fontSize: 13, display: "block", marginBottom: 4 }}>
+              用户名
             </label>
             <input
               value={username}
@@ -68,9 +68,9 @@ export default function RegisterPage() {
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 6,
-                border: "1px solid var(--border, #2a2a3a)",
-                background: "var(--editor-bg, #12121c)",
-                color: "var(--text-primary, #e0e0e0)",
+                border: "1px solid var(--border, #e0e0e0)",
+                background: "var(--editor-bg, #fafafa)",
+                color: "var(--text-primary, #1a1a1a)",
                 fontSize: 14,
                 outline: "none",
                 boxSizing: "border-box",
@@ -79,8 +79,8 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <label style={{ color: "var(--text-secondary, #999)", fontSize: 13, display: "block", marginBottom: 4 }}>
-              Password
+            <label style={{ color: "var(--text-secondary, #666)", fontSize: 13, display: "block", marginBottom: 4 }}>
+              密码
             </label>
             <input
               type="password"
@@ -90,9 +90,9 @@ export default function RegisterPage() {
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 6,
-                border: "1px solid var(--border, #2a2a3a)",
-                background: "var(--editor-bg, #12121c)",
-                color: "var(--text-primary, #e0e0e0)",
+                border: "1px solid var(--border, #e0e0e0)",
+                background: "var(--editor-bg, #fafafa)",
+                color: "var(--text-primary, #1a1a1a)",
                 fontSize: 14,
                 outline: "none",
                 boxSizing: "border-box",
@@ -123,14 +123,14 @@ export default function RegisterPage() {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {loading ? "Creating account..." : "Register"}
+            {loading ? "创建中..." : "注册"}
           </button>
         </form>
 
-        <p style={{ color: "var(--text-muted, #666)", fontSize: 13, marginTop: 16, textAlign: "center" }}>
-          Already have an account?{" "}
+        <p style={{ color: "var(--text-muted, #888)", fontSize: 13, marginTop: 16, textAlign: "center" }}>
+          已有账号？{" "}
           <Link to="/login" style={{ color: "#60a5fa", textDecoration: "none" }}>
-            Sign In
+            登录
           </Link>
         </p>
       </div>
