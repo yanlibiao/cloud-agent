@@ -170,6 +170,9 @@ export const useChatStore = create<SessionState>((set, get) => ({
 
   closeFile: (path) =>
     set((state) => {
+      if (path === "__all__") {
+        return { openFiles: [], fileContents: {} };
+      }
       const files = state.openFiles.filter((f) => f !== path);
       const contents = { ...state.fileContents };
       delete contents[path];

@@ -21,6 +21,8 @@ async function fetchSessions() {
 async function fetchFileTreeWithPath(sessionId: string | null, treePath: string) {
   if (!sessionId) return;
   try {
+    const { sessionId: currentSid } = useChatStore.getState();
+    if (currentSid !== sessionId) return;
     const res = await fetch(`/api/files/${sessionId}/tree?path=${encodeURIComponent(treePath)}`);
     if (!res.ok) return;
     const data = await res.json();
@@ -59,7 +61,10 @@ export default function WorkspacePage() {
 
   const switchSession = async (sid: string) => {
     setSessionId(sid);
+    // Clear messages and file tree to avoid showing stale data from old session
     useChatStore.getState().setMessages([]);
+    useChatStore.getState().setFileTree(".", []);
+    useChatStore.getState().closeFile("__all__"); // clear openFiles + fileContents
     cleanupRef.current?.();
     try {
       const data = await api.sessions.get(sid);
@@ -234,7 +239,7 @@ function WorkspaceLayout({
       >
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)", fontFamily: "system-ui" }}>
-            Cloud Agent
+            无穷Agent
           </h1>
           <span className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>

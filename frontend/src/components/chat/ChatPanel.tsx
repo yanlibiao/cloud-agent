@@ -123,7 +123,7 @@ export default function ChatPanel() {
         >
           <div className="text-4xl mb-3">⚡</div>
           <p className="text-lg font-medium" style={{ color: "var(--text-secondary)" }}>
-            Cloud Agent
+            无穷Agent
           </p>
           <p className="text-sm mt-1">描述你想要构建的功能</p>
         </div>

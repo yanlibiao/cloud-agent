@@ -50,7 +50,7 @@ export default function RegisterPage() {
         }}
       >
         <h1 style={{ color: "var(--text-primary, #1a1a1a)", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>
-          Cloud Agent
+          无穷Agent
         </h1>
         <p style={{ color: "var(--text-muted, #888)", fontSize: 14, marginBottom: 24 }}>
           创建新账号

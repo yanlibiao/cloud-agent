@@ -132,7 +132,9 @@ export function useAgent() {
 
 async function fetchFileTree(sessionId: string, notifyOnNew = false) {
   try {
-    const { fileTreePath } = useChatStore.getState();
+    const { fileTreePath, sessionId: currentSid } = useChatStore.getState();
+    // Guard: discard stale callbacks from a different (old) session
+    if (currentSid !== sessionId) return;
     const pathParam = fileTreePath && fileTreePath !== "." ? `?path=${encodeURIComponent(fileTreePath)}` : "";
     const res = await fetch(`/api/files/${sessionId}/tree${pathParam}`);
     if (!res.ok) return;
@@ -189,6 +191,8 @@ function refreshSessionList() {
 
 export async function loadFileContent(sessionId: string | null, path: string) {
   if (!sessionId) return;
+  const { sessionId: currentSid } = useChatStore.getState();
+  if (currentSid !== sessionId) return;
   try {
     const res = await fetch(`/api/files/${sessionId}/read?path=${encodeURIComponent(path)}`);
     if (!res.ok) return;

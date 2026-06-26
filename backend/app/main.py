@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up cloud-agent backend...")
     logger.info(f"LLM model: {settings.llm_model}")
     logger.info(f"Sandbox image: {settings.sandbox_image}")
+    logger.info(f"Sandbox image: {settings.sandbox_image}")
 
     # Ensure .env exists (fallback to .env.example for Codespace)
     env_path = Path(".env")
@@ -56,7 +57,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Cloud Agent",
+    title="无穷Agent",
     version="0.1.0",
     lifespan=lifespan,
 )

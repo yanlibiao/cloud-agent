@@ -14,7 +14,7 @@ const AD_IMAGES: string[] = [
 const AD_DURATION = 15000; // 15 seconds per ad
 
 const PLACEHOLDER_ADS = [
-  { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "AI Powered", sub: "Cloud Agent Pro" },
+  { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "AI Powered", sub: "无穷Agent Pro" },
   { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", text: "10x 开发效率", sub: "AI Coding Agent" },
   { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", text: "云端沙箱", sub: "安全隔离 · 随时随地" },
   { bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", text: "企业级安全", sub: "SOC 2 · 数据加密" },
