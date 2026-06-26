@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "../../stores/chatStore";
 import type { ChatMessage } from "../../stores/chatStore";
+import Markdown from "../Markdown";
 
 function ToolCallItem({ toolCall }: { toolCall: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -77,18 +78,18 @@ function MessageItem({ msg }: { msg: ChatMessage }) {
   return (
     <div className="mb-4">
       <div
-        className="text-sm leading-relaxed whitespace-pre-wrap"
+        className="text-sm leading-relaxed"
         style={{ color: "var(--text-primary)" }}
       >
         {msg.isStreaming ? (
           <span>
-            {msg.content}
+            <Markdown content={msg.content} />
             <span className="animate-pulse" style={{ color: "var(--text-secondary)" }}>
               ▌
             </span>
           </span>
         ) : (
-          msg.content
+          <Markdown content={msg.content} />
         )}
       </div>
       {msg.toolCalls && msg.toolCalls.length > 0 && (
