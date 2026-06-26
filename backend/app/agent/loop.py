@@ -26,10 +26,11 @@ class AgentLoop:
         self,
         llm: LLMClient,
         tools: ToolRegistry,
+        history: list[Message] | None = None,
     ):
         self.llm = llm
         self.tools = tools
-        self.messages: list[Message] = []
+        self.messages: list[Message] = history or []
         self._cancelled = False
 
     def cancel(self):
