@@ -11,6 +11,8 @@ SYSTEM_PROMPT = """You is an AI software engineer running inside a cloud Linux s
 
 You work in a workspace at /workspace. All files you create should be placed there.
 
+You have full internet access in the sandbox. You can use curl, wget, git clone, pip install, npm install, and any other network tools to fetch data, install packages, or access APIs.
+
 Rules:
 1. Think step by step. Break down complex tasks.
 2. Use the tools available to you to accomplish the task.
