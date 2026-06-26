@@ -28,6 +28,79 @@ function renderInline(text: string): string {
   return text;
 }
 
+function isTableRow(line: string): boolean {
+  return line.trim().startsWith("|") && line.trim().endsWith("|");
+}
+
+function isTableSeparator(line: string): boolean {
+  // A separator row like |---|---| has only dashes, pipes, colons, spaces
+  return /^\|[\s\-:|]+\|$/.test(line.trim());
+}
+
+function parseTableCells(line: string): string[] {
+  // Strip leading/trailing pipe, split on pipe
+  return line
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((c) => c.trim());
+}
+
+function renderTable(tableLines: string[], startIndex: number): JSX.Element {
+  // First line is header, second is separator, rest are body rows
+  const headers = parseTableCells(tableLines[0]);
+  const bodyRows = tableLines.slice(2);
+
+  return (
+    <div key={`tbl-${startIndex}`} style={{ overflowX: "auto", margin: "8px 0" }}>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: 13,
+          lineHeight: 1.5,
+        }}
+      >
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              <th
+                key={i}
+                style={{
+                  border: "1px solid var(--border)",
+                  padding: "8px 12px",
+                  textAlign: "left",
+                  fontWeight: 600,
+                  background: "var(--hover-bg, rgba(255,255,255,0.05))",
+                  color: "var(--text-primary)",
+                }}
+                dangerouslySetInnerHTML={{ __html: renderInline(escapeHtml(h)) }}
+              />
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bodyRows.map((row, ri) => (
+            <tr key={ri}>
+              {parseTableCells(row).map((cell, ci) => (
+                <td
+                  key={ci}
+                  style={{
+                    border: "1px solid var(--border)",
+                    padding: "6px 12px",
+                    color: "var(--text-secondary)",
+                  }}
+                  dangerouslySetInnerHTML={{ __html: renderInline(escapeHtml(cell)) }}
+                />
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Markdown({ content }: MDProps) {
   if (!content) return null;
 
@@ -66,6 +139,20 @@ export default function Markdown({ content }: MDProps) {
 
     if (inCodeBlock) {
       codeLines.push(line);
+      continue;
+    }
+
+    // Table — detect by checking if this line and the next form a table
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const tableLines: string[] = [line];
+      let j = i + 1;
+      // Collect all consecutive table rows (skip the separator)
+      while (j < lines.length && isTableRow(lines[j])) {
+        tableLines.push(lines[j]);
+        j++;
+      }
+      elements.push(renderTable(tableLines, i));
+      i = j - 1; // skip consumed lines
       continue;
     }
 
@@ -138,7 +225,6 @@ export default function Markdown({ content }: MDProps) {
     // Regular paragraph
     const escaped = escapeHtml(line);
 
-    // Check for inline code to not break inside code spans
     elements.push(
       <div key={`p-${i}`} style={{ margin: "4px 0", lineHeight: 1.6, color: "var(--text-primary)" }}>
         <span dangerouslySetInnerHTML={{ __html: renderInline(escaped) }} />
