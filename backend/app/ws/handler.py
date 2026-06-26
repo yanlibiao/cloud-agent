@@ -30,6 +30,32 @@ _session_loops: dict[str, AgentLoop] = {}
 _session_saved_count: dict[str, int] = {}
 
 
+async def _auto_name_session(session_id: str, user_message: str) -> None:
+    """Generate a short title from the first user message and update the DB."""
+    try:
+        resp = await llm_client.generate([
+            {
+                "role": "system",
+                "content": "Generate a very short title (max 6 words, in Chinese unless the user's message is in English) for a conversation that starts with the following message. Reply with ONLY the title, no quotes, no punctuation.",
+            },
+            {"role": "user", "content": user_message},
+        ], max_tokens=30)
+        title = resp.strip().strip('"').strip("'")[:100]
+        if not title:
+            return
+        async with async_session_factory() as db:
+            result = await db.execute(
+                select(DBSession).where(DBSession.id == session_id)
+            )
+            sess = result.scalar_one_or_none()
+            if sess and sess.title == "New Session":
+                sess.title = title
+                await db.commit()
+                logger.info(f"Auto-named session {session_id}: {title}")
+    except Exception as e:
+        logger.warning(f"Auto-name session failed for {session_id}: {e}")
+
+
 async def _save_messages(session_id: str, messages: list[Message]) -> None:
     """Persist a batch of messages to the DB, skipping user messages (saved by frontend init)."""
     if not messages:
@@ -211,6 +237,7 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
             if msg.type == "user_prompt" and msg.text:
                 # Track message count before this turn so we only save new ones
                 count_before = len(agent_loop.messages)
+                first_user_text = msg.text if count_before == 0 else None
 
                 async def stream_turn():
                     try:
@@ -232,6 +259,9 @@ async def agent_websocket(websocket: WebSocket, session_id: str):
                         if new_msgs:
                             await _save_messages(session_id, new_msgs)
                             _session_saved_count[session_id] = len(agent_loop.messages)
+                        # Auto-name if still has default title
+                        if first_user_text:
+                            asyncio.create_task(_auto_name_session(session_id, first_user_text))
 
                 current_run = asyncio.create_task(stream_turn())
 

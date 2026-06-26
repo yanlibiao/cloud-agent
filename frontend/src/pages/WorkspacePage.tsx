@@ -22,17 +22,18 @@ export default function WorkspacePage() {
   const { sendPrompt, sendInterrupt, connect } = useAgent();
   const sessionId = useChatStore((s) => s.sessionId);
   const setSessionId = useChatStore((s) => s.setSessionId);
+  const sessions = useChatStore((s) => s.sessions);
+  const setSessions = useChatStore((s) => s.setSessions);
   const cleanupRef = useRef<(() => void) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
 
   const logout = useAuthStore((s) => s.logout);
 
   const handleNewSession = async () => {
     try {
       const sid = await createSession();
-      setSessions(prev => [...prev, { id: sid, title: "New Session" }]);
+      setSessions([...sessions, { id: sid, title: "New Session" }]);
       setSessionId(sid);
       useChatStore.getState().setMessages([]);
       const cleanup = connect(sid);
@@ -57,9 +58,9 @@ export default function WorkspacePage() {
   const handleDeleteSession = async (sid: string) => {
     try {
       await api.sessions.delete(sid);
-      setSessions(prev => prev.filter(s => s.id !== sid));
+      setSessions(sessions.filter((s: any) => s.id !== sid));
       if (sessionId === sid) {
-        const remaining = sessions.filter(s => s.id !== sid);
+        const remaining = sessions.filter((s: any) => s.id !== sid);
         if (remaining.length > 0) {
           switchSession(remaining[0].id);
         } else {
@@ -72,7 +73,7 @@ export default function WorkspacePage() {
   const handleRenameSession = async (sid: string, title: string) => {
     try {
       await api.sessions.rename(sid, title);
-      setSessions(prev => prev.map(s => s.id === sid ? { ...s, title } : s));
+      setSessions(sessions.map((s: any) => s.id === sid ? { ...s, title } : s));
     } catch {}
   };
 
@@ -267,8 +268,8 @@ function WorkspaceLayout({
 import ChatPanel from "../components/chat/ChatPanel";
 import ChatInput from "../components/chat/ChatInput";
 
-/* Session panel */
-function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSession, onDeleteSession }: {
+/* Session panel with double-click rename */
+function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSession, onDeleteSession, onRenameSession }: {
   sessions: any[];
   currentSessionId: string | null;
   onNewSession: () => void;
@@ -278,6 +279,21 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEditing = (sid: string, currentTitle: string) => {
+    setEditingId(sid);
+    setEditTitle(currentTitle);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const submitRename = (sid: string) => {
+    const title = editTitle.trim();
+    if (title && title !== sessions.find((s: any) => s.id === sid)?.title) {
+      onRenameSession(sid, title);
+    }
+    setEditingId(null);
+  };
 
   return (
     <div>
@@ -301,9 +317,34 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
                 color: s.id === currentSessionId ? "var(--text-primary)" : "var(--text-secondary)",
                 background: s.id === currentSessionId ? "var(--hover-bg, rgba(0,0,0,0.05))" : "transparent",
               }}
-              onClick={() => onSwitchSession(s.id)}
+              onClick={() => {
+                if (editingId !== s.id) onSwitchSession(s.id);
+              }}
+              onDoubleClick={() => startEditing(s.id, s.title)}
             >
-              <span className="truncate flex-1">{s.title}</span>
+              {editingId === s.id ? (
+                <input
+                  ref={inputRef}
+                  className="flex-1 bg-transparent border-b text-xs outline-none min-w-0"
+                  style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={() => submitRename(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitRename(s.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <>
+                  {s.title === "New Session" && s.id === currentSessionId ? (
+                    <span className="truncate flex-1 italic opacity-60">{s.title}</span>
+                  ) : (
+                    <span className="truncate flex-1">{s.title}</span>
+                  )}
+                </>
+              )}
               <button
                 onClick={(e) => { e.stopPropagation(); onDeleteSession(s.id); }}
                 className="opacity-0 group-hover:opacity-100 px-0.5"
@@ -321,42 +362,115 @@ function SessionPanel({ sessions, currentSessionId, onNewSession, onSwitchSessio
 
 function FileTreePanel({ sessionId }: { sessionId: string | null }) {
   const fileTree = useChatStore((s) => s.fileTree);
+  const [showAll, setShowAll] = useState(false);
+
+  // Only show these file types as "deliverables" by default
+  const DELIVERABLE_EXTS = new Set([
+    '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
+    '.txt', '.md', '.csv',
+    '.zip', '.tar', '.gz', '.rar', '.7z',
+    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.bmp',
+    '.html', '.htm', '.epub', '.mobi',
+    '.mp3', '.mp4', '.wav', '.avi', '.mov', '.mkv', '.flac',
+    '.exe', '.msi', '.dmg', '.apk', '.ipa',
+    '.ttf', '.otf', '.woff', '.woff2', '.iso',
+    '.psd', '.ai', '.fig', '.sketch',
+    '.wasm', '.drawio', '.vsdx',
+  ]);
+
+  // Directories that are clearly internal/build artifacts
+  const HIDDEN_DIRS = new Set([
+    'node_modules', '__pycache__', '.git', '.venv', 'venv', '.env',
+    'dist', 'build', '.next', '.vite', '.cache', 'target',
+  ]);
+
+  const isDeliverable = (name: string) => {
+    const dot = name.lastIndexOf('.');
+    if (dot === -1) return false;
+    const ext = name.substring(dot).toLowerCase();
+    return DELIVERABLE_EXTS.has(ext);
+  };
+
+  const visibleFiles = showAll
+    ? fileTree.filter((e) => e.type === "file")
+    : fileTree.filter((e) => e.type === "file" && isDeliverable(e.name));
+
+  const visibleDirs = fileTree.filter(
+    (e) => e.type === "directory" && !HIDDEN_DIRS.has(e.name)
+  );
 
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wider mb-2 px-1" style={{ color: "var(--text-muted)" }}>
-        文件
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+          文件
+        </span>
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="text-xs px-1.5 py-0.5 rounded transition-colors"
+          style={{ color: showAll ? "var(--text-primary)" : "var(--text-muted)" }}
+          title={showAll ? "仅显示产出文件" : "显示全部文件"}
+        >
+          {showAll ? "产出" : "全部"}
+        </button>
       </div>
       {fileTree.length === 0 ? (
         <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无文件</p>
       ) : (
         <div className="space-y-0.5">
-          {fileTree.filter((e) => e.type === "file").map((entry) => (
-            <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
-              style={{ color: "var(--text-secondary)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
-                <span className="text-xs">📄</span>
-                <span className="truncate">{entry.name}</span>
-              </span>
-              <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank"); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="下载文件">
-                ⬇
-              </button>
-            </div>
-          ))}
-          {fileTree.filter((e) => e.type === "directory").map((entry) => (
-            <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-              <span>📁</span>
-              <span>{entry.name}</span>
-            </div>
-          ))}
+          {!showAll && visibleFiles.length === 0 && visibleDirs.length === 0 ? (
+            <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无产出文件</p>
+          ) : (
+            <>
+              {visibleFiles.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
+                  style={{ color: "var(--text-secondary)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
+                    <span className="text-xs">{getFileIcon(entry.name)}</span>
+                    <span className="truncate">{entry.name}</span>
+                  </span>
+                  <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank"); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="下载文件">
+                    ⬇
+                  </button>
+                </div>
+              ))}
+              {visibleDirs.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <span>📁</span>
+                  <span>{entry.name}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+function getFileIcon(name: string): string {
+  const dot = name.lastIndexOf('.');
+  if (dot === -1) return '📄';
+  const ext = name.substring(dot).toLowerCase();
+  const icons: Record<string, string> = {
+    '.pdf': '📕', '.docx': '📘', '.doc': '📘', '.xlsx': '📊', '.xls': '📊',
+    '.pptx': '📙', '.ppt': '📙', '.txt': '📄', '.md': '📝', '.csv': '📋',
+    '.zip': '📦', '.tar': '📦', '.gz': '📦', '.rar': '📦', '.7z': '📦',
+    '.png': '🖼️', '.jpg': '🖼️', '.jpeg': '🖼️', '.gif': '🖼️', '.svg': '🖼️', '.webp': '🖼️',
+    '.html': '🌐', '.htm': '🌐',
+    '.mp3': '🎵', '.mp4': '🎬', '.wav': '🎵',
+    '.exe': '⚙️', '.dmg': '💿', '.apk': '📱',
+    '.json': '📋', '.xml': '📋', '.yaml': '📋', '.yml': '📋',
+    '.epub': '📖', '.mobi': '📖',
+    '.ico': '🖼️', '.bmp': '🖼️',
+    '.psd': '🎨', '.ai': '🎨', '.fig': '🎨',
+    '.wasm': '⚙️',
+  };
+  return icons[ext] || '📄';
 }
 
 function EditorPanel() {

@@ -25,6 +25,20 @@ class LLMClient:
             )
         return self._client
 
+    async def generate(
+        self,
+        messages: list[dict],
+        max_tokens: int = 100,
+    ) -> str:
+        """Non-streaming completion. Returns the full response text."""
+        client = self._ensure_client()
+        response = await client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+        return response.choices[0].message.content or ""
+
     async def stream(
         self,
         messages: list[dict],

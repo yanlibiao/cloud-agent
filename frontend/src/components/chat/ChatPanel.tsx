@@ -105,6 +105,9 @@ function MessageItem({ msg }: { msg: ChatMessage }) {
 
 export default function ChatPanel() {
   const messages = useChatStore((s) => s.messages);
+  const downloadNotification = useChatStore((s) => s.downloadNotification);
+  const clearDownloadNotification = useChatStore((s) => s.clearDownloadNotification);
+  const sessionId = useChatStore((s) => s.sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function ChatPanel() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-      {messages.length === 0 && (
+      {messages.length === 0 && !downloadNotification && (
         <div
           className="flex flex-col items-center justify-center h-full"
           style={{ color: "var(--text-muted)" }}
@@ -123,6 +126,46 @@ export default function ChatPanel() {
             Cloud Agent
           </p>
           <p className="text-sm mt-1">描述你想要构建的功能</p>
+        </div>
+      )}
+
+      {/* Download notification banner */}
+      {downloadNotification && (
+        <div className="mb-3 rounded-lg overflow-hidden border" style={{
+          borderColor: "var(--border)",
+          background: "linear-gradient(135deg, #065f46, #047857)",
+        }}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 20 }}>📥</span>
+              <div>
+                <div className="text-sm font-medium text-white">文件已就绪</div>
+                <div className="text-xs text-green-200 mt-0.5">
+                  Agent 已完成 {downloadNotification.files.length} 个产出文件
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={clearDownloadNotification}
+              className="text-white/60 hover:text-white text-lg leading-none px-1"
+            >×</button>
+          </div>
+          <div className="px-4 pb-3 flex flex-wrap gap-2">
+            {downloadNotification.files.map((f) => (
+              <a
+                key={f.path}
+                href={`/api/files/${sessionId}/download?path=${encodeURIComponent(f.path)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.25)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; }}
+              >
+                ⬇ {f.name}
+              </a>
+            ))}
+          </div>
         </div>
       )}
       {messages

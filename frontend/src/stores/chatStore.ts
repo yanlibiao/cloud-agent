@@ -31,6 +31,8 @@ interface SessionState {
   fileContents: Record<string, string>;
   terminalOutput: string;
   wsCleanup: (() => void) | null;
+  downloadNotification: { files: { name: string; path: string }[] } | null;
+  sessions: any[];
 
   setSessionId: (id: string) => void;
   setConnected: (connected: boolean) => void;
@@ -50,6 +52,9 @@ interface SessionState {
   closeFile: (path: string) => void;
   appendTerminalOutput: (text: string) => void;
   setWsCleanup: (fn: (() => void) | null) => void;
+  setDownloadNotification: (notification: { files: { name: string; path: string }[] } | null) => void;
+  clearDownloadNotification: () => void;
+  setSessions: (sessions: any[]) => void;
 }
 
 export const useChatStore = create<SessionState>((set, get) => ({
@@ -66,6 +71,8 @@ export const useChatStore = create<SessionState>((set, get) => ({
   fileContents: {},
   terminalOutput: "",
   wsCleanup: null,
+  downloadNotification: null,
+  sessions: [],
 
   setSessionId: (id) => set({ sessionId: id }),
   setConnected: (connected) => set({ connected }),
@@ -175,4 +182,7 @@ export const useChatStore = create<SessionState>((set, get) => ({
     })),
 
   setWsCleanup: (fn) => set({ wsCleanup: fn }),
+  setDownloadNotification: (notification) => set({ downloadNotification: notification }),
+  clearDownloadNotification: () => set({ downloadNotification: null }),
+  setSessions: (sessions) => set({ sessions }),
 }));

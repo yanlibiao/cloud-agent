@@ -74,6 +74,10 @@ export function useAgent() {
           s.setAgentState("idle");
           s.finalizeStreaming();
           s.setExecutionProgress("100%");
+          // Refresh file tree and check for new deliverable files
+          fetchFileTree(sid, true);
+          // Refresh session list (title may have been auto-named)
+          refreshSessionList();
           break;
 
         case "error":
@@ -126,17 +130,59 @@ export function useAgent() {
   return { connect, sendPrompt, sendInterrupt, disconnect };
 }
 
-async function fetchFileTree(sessionId: string) {
+async function fetchFileTree(sessionId: string, notifyOnNew = false) {
   try {
     const res = await fetch(`/api/files/${sessionId}/tree`);
     if (!res.ok) return;
     const data = await res.json();
     if (data.entries) {
       useChatStore.getState().setFileTree(data.path, data.entries);
+      // After turn completion, notify about deliverable files
+      if (notifyOnNew) {
+        const DELIVERABLE_EXTS = new Set([
+          '.pdf', '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
+          '.txt', '.md', '.csv', '.zip', '.tar', '.gz', '.rar', '.7z',
+          '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.bmp',
+          '.html', '.htm', '.epub', '.mobi',
+        ]);
+        const deliverableFiles = (data.entries as any[])
+          .filter((e: any) => e.type === "file" && DELIVERABLE_EXTS.has(
+            e.name.substring(e.name.lastIndexOf('.')).toLowerCase()
+          ))
+          .map((e: any) => ({ name: e.name, path: e.name }));
+        if (deliverableFiles.length > 0) {
+          useChatStore.getState().setDownloadNotification({ files: deliverableFiles });
+        }
+      }
     }
   } catch {
     // ignore
   }
+}
+
+let _sessionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function refreshSessionList() {
+  if (_sessionRefreshTimer) clearTimeout(_sessionRefreshTimer);
+  _sessionRefreshTimer = setTimeout(async () => {
+    try {
+      const res = await fetch("/api/sessions", {
+        headers: (() => {
+          const raw = localStorage.getItem("cloud_agent_auth");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed.token) return { Authorization: `Bearer ${parsed.token}` };
+          }
+          return {};
+        })(),
+      });
+      if (!res.ok) return;
+      const sessions = await res.json();
+      useChatStore.getState().setSessions(sessions);
+    } catch {
+      // ignore
+    }
+  }, 1000);
 }
 
 export async function loadFileContent(sessionId: string | null, path: string) {
