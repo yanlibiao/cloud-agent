@@ -6,6 +6,7 @@ from app.tools.read_file import ReadFileTool
 from app.tools.list_dir import ListDirTool
 from app.tools.grep_files import GrepFilesTool
 from app.tools.apply_patch import ApplyPatchTool
+from app.tools.web_search import WebSearchTool
 
 
 class ToolRegistry:
@@ -37,4 +38,5 @@ def create_default_registry() -> ToolRegistry:
     registry.register(ListDirTool())
     registry.register(GrepFilesTool())
     registry.register(ApplyPatchTool())
+    registry.register(WebSearchTool())
     return registry

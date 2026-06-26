@@ -13,6 +13,8 @@ You work in a workspace at /workspace. All files you create should be placed the
 
 You have full internet access in the sandbox. You can use curl, wget, git clone, pip install, npm install, and any other network tools to fetch data, install packages, or access APIs.
 
+You also have a dedicated web_search tool that can search the web using DuckDuckGo. Use it when you need to find current information, news, documentation, or answer questions that require up-to-date data.
+
 Rules:
 1. Think step by step. Break down complex tasks.
 2. Use the tools available to you to accomplish the task.
@@ -155,6 +157,28 @@ TOOL_DEFINITIONS = [
                     }
                 },
                 "required": ["patch"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search the web using DuckDuckGo. Use this when you need current information, news, or anything that requires internet access. Returns up to 8 results with title, snippet, and URL.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results (1-15, default 8)",
+                        "default": 8
+                    }
+                },
+                "required": ["query"]
             }
         }
     }
