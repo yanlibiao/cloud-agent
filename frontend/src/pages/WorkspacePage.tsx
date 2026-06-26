@@ -18,6 +18,20 @@ async function fetchSessions() {
   }
 }
 
+async function fetchFileTreeWithPath(sessionId: string | null, treePath: string) {
+  if (!sessionId) return;
+  try {
+    const res = await fetch(`/api/files/${sessionId}/tree?path=${encodeURIComponent(treePath)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.entries) {
+      useChatStore.getState().setFileTree(treePath, data.entries);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export default function WorkspacePage() {
   const { sendPrompt, sendInterrupt, connect } = useAgent();
   const sessionId = useChatStore((s) => s.sessionId);
@@ -399,6 +413,26 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
     (e) => e.type === "directory" && !HIDDEN_DIRS.has(e.name)
   );
 
+  const [treePath, setTreePath] = useState(".");
+
+  const navigateDir = (dirName: string) => {
+    const newPath = treePath === "." ? dirName : `${treePath}/${dirName}`;
+    setTreePath(newPath);
+    fetchFileTreeWithPath(sessionId, newPath);
+  };
+
+  const goBack = () => {
+    const parts = treePath.split("/");
+    if (parts.length <= 1) {
+      setTreePath(".");
+      fetchFileTreeWithPath(sessionId, ".");
+    } else {
+      const parent = parts.slice(0, -1).join("/");
+      setTreePath(parent);
+      fetchFileTreeWithPath(sessionId, parent);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
@@ -418,6 +452,18 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
         <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无文件</p>
       ) : (
         <div className="space-y-0.5">
+          {treePath !== "." && (
+            <div className="flex items-center gap-1 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onClick={goBack}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span>⬆</span>
+              <span>返回上级</span>
+            </div>
+          )}
+
           {!showAll && visibleFiles.length === 0 && visibleDirs.length === 0 ? (
             <p className="text-xs px-1" style={{ color: "var(--text-muted)" }}>暂无产出文件</p>
           ) : (
@@ -428,20 +474,29 @@ function FileTreePanel({ sessionId }: { sessionId: string | null }) {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span onClick={() => loadFileContent(sessionId, entry.name)} className="flex items-center gap-1.5 flex-1 truncate">
+                  <span onClick={() => loadFileContent(sessionId, treePath === "." ? entry.name : `${treePath}/${entry.name}`)} className="flex items-center gap-1.5 flex-1 truncate">
                     <span className="text-xs">{getFileIcon(entry.name)}</span>
                     <span className="truncate">{entry.name}</span>
                   </span>
-                  <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(entry.name)}`, "_blank"); }}
+                  <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download?path=${encodeURIComponent(treePath === "." ? entry.name : `${treePath}/${entry.name}`)}`, "_blank"); }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="下载文件">
                     ⬇
                   </button>
                 </div>
               ))}
               {visibleDirs.map((entry) => (
-                <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <div key={entry.name} className="flex items-center gap-1.5 px-1 py-0.5 text-xs rounded cursor-pointer transition-colors group"
+                  style={{ color: "var(--text-secondary)" }}
+                  onClick={() => navigateDir(entry.name)}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--hover-bg)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
                   <span>📁</span>
-                  <span>{entry.name}</span>
+                  <span className="truncate flex-1">{entry.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); window.open(`/api/files/${sessionId}/download-all?subdir=${encodeURIComponent(treePath === "." ? entry.name : `${treePath}/${entry.name}`)}`, "_blank"); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity px-1 text-xs" style={{ color: "var(--text-muted)" }} title="下载文件夹">
+                    ⬇
+                  </button>
                 </div>
               ))}
             </>

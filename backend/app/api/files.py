@@ -90,24 +90,29 @@ async def download_file(session_id: str, path: str = Query(description="File pat
 
 
 @router.get("/{session_id}/download-all")
-async def download_all(session_id: str):
-    """Download the entire workspace as a zip file."""
+async def download_all(session_id: str, subdir: str = Query(default="", description="Subdirectory path relative to workspace")):
+    """Download the entire workspace (or a subdirectory) as a zip file."""
     workspace = os.path.abspath(_get_workspace(session_id))
+    base_path = os.path.abspath(os.path.join(workspace, subdir)) if subdir else workspace
 
-    if not os.path.isdir(workspace) or not os.listdir(workspace):
-        raise HTTPException(status_code=404, detail="Workspace is empty")
+    if not base_path.startswith(workspace):
+        raise HTTPException(status_code=403, detail="Path outside workspace")
+
+    if not os.path.isdir(base_path) or not os.listdir(base_path):
+        raise HTTPException(status_code=404, detail="Directory is empty")
 
     # Create zip in temp dir
     zip_path = os.path.join(tempfile.gettempdir(), f"workspace_{session_id}.zip")
     with ZipFile(zip_path, "w") as zf:
-        for root, dirs, files in os.walk(workspace):
+        for root, dirs, files in os.walk(base_path):
             for file in files:
                 full_path = os.path.join(root, file)
-                arcname = os.path.relpath(full_path, workspace)
+                arcname = os.path.relpath(full_path, base_path)
                 zf.write(full_path, arcname)
 
+    label = subdir.replace("/", "_") if subdir else "workspace"
     return FileResponse(
         zip_path,
-        filename=f"workspace_{session_id}.zip",
+        filename=f"{label}_{session_id}.zip",
         media_type="application/zip",
     )
